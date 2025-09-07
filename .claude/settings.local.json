@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(venv_gold_businessScriptsactivate)",
+      "Bash(pip install:*)",
+      "Bash(venv_gold_business\\Scripts\\activate:*)",
+      "Bash(.venv_gold_businessScriptsactivate.bat)",
+      "Bash(Scripts\\pip.exe install streamlit plotly pandas numpy pillow fpdf2 bcrypt streamlit-authenticator extra-streamlit-components)",
+      "Bash(streamlit run:*)",
+      "WebSearch",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
