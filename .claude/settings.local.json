@@ -15,7 +15,9 @@
       "Bash(git push:*)",
       "Bash(git rm:*)",
       "Bash(git commit:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(git pull:*)",
+      "WebFetch(domain:docs.agentrouter.org)"
     ],
     "deny": [],
     "ask": []

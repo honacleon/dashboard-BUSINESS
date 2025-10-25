@@ -12,6 +12,7 @@ import time
 import random
 from whatsapp_alerts import show_whatsapp_alerts_page
 from pdf_reports import show_pdf_reports_page
+from ai_chatbot import show_ai_chatbot_page
 
 st.set_page_config(
     page_title="Aurum Business Dashboard",
@@ -564,6 +565,13 @@ class AuthManager:
             if AuthManager.verify_password(password, user["password"]):
                 return user
         return None
+
+    @staticmethod
+    def get_user(username):
+        """Retorna dados do usuário se existir"""
+        if username in AuthManager.USERS:
+            return AuthManager.USERS[username]
+        return None
     
     @staticmethod
     def has_permission(permission):
@@ -624,6 +632,46 @@ class DataGenerator:
             'Count': [15000, 4500, 1800, 850, 420],
             'Conversion': [100, 30, 12, 5.7, 2.8]
         })
+
+def extract_dashboard_data():
+    """
+    Extrai dados reais do dashboard para enviar ao chatbot
+
+    Returns:
+        dict: Dicionário com métricas e dados do dashboard
+    """
+    # Gerar dados atuais
+    kpis = DataGenerator.generate_kpis()
+    channel_data = DataGenerator.generate_channel_data()
+    funnel_data = DataGenerator.generate_funnel_data()
+
+    # Formatar para o chatbot
+    dashboard_context = {
+        "Métricas Principais": kpis,
+        "Performance por Canal": {
+            row['Channel']: {
+                "Investimento": f"R$ {row['Spend']:,.0f}",
+                "Receita": f"R$ {row['Revenue']:,.0f}",
+                "Conversões": f"{int(row['Conversions'])}",
+                "ROAS": f"{row['ROAS']:.1f}x"
+            }
+            for _, row in channel_data.iterrows()
+        },
+        "Funil de Conversão": {
+            row['Stage']: {
+                "Quantidade": f"{int(row['Count']):,}",
+                "Taxa de Conversão": f"{row['Conversion']:.1f}%"
+            }
+            for _, row in funnel_data.iterrows()
+        },
+        "Contexto": {
+            "Data de Análise": datetime.now().strftime("%d/%m/%Y"),
+            "Período": "Últimos 30 dias",
+            "Empresa": "Aurum Business"
+        }
+    }
+
+    return dashboard_context
 
 class ChartGenerator:
     @staticmethod
@@ -785,12 +833,17 @@ def show_login():
             username = st.text_input("👤 Usuário")
             password = st.text_input("🔑 Senha", type="password")
             submit = st.form_submit_button("🚀 ACESSAR DASHBOARD", use_container_width=True)
-            
+
             if submit:
                 user = AuthManager.authenticate(username, password)
                 if user:
                     st.session_state.user = user
                     st.session_state.logged_in = True
+
+                    # Adicionar token de sessão na URL para persistência
+                    session_token = base64.b64encode(username.encode('utf-8')).decode('utf-8')
+                    st.query_params['session'] = session_token
+
                     st.rerun()
                 else:
                     st.error("❌ Credenciais inválidas!")
@@ -879,8 +932,14 @@ def show_dashboard():
         
         # Logout
         if st.button("🚪 Logout", use_container_width=True, type="secondary"):
-            for key in st.session_state.keys():
+            # Limpar session state
+            for key in list(st.session_state.keys()):
                 del st.session_state[key]
+
+            # Limpar token de sessão da URL
+            if 'session' in st.query_params:
+                del st.query_params['session']
+
             st.rerun()
     
     # Obter página selecionada
@@ -897,7 +956,9 @@ def show_dashboard():
     elif selected_page == "📄 Relatórios PDF":
         show_pdf_reports_page(theme)
     elif selected_page == "🤖 IA Chatbot":
-        show_ai_chatbot_page(theme)
+        # Extrair dados reais do dashboard para o chatbot
+        dashboard_data = extract_dashboard_data()
+        show_ai_chatbot_page(theme, dashboard_data=dashboard_data)
 
 def show_overview_page(theme):
     st.markdown("""
@@ -3196,288 +3257,30 @@ def show_operational_page(theme):
             </div>
             """, unsafe_allow_html=True)
 
-def show_ai_chatbot_page(theme):
-    st.markdown(f"""
-    <style>
-    .chatbot-header {{
-        background: {theme['gradient_main']};
-        padding: 20px;
-        border-radius: 15px;
-        margin-bottom: 20px;
-        border: 1px solid {theme['border']};
-        box-shadow: {theme['shadow']};
-        text-align: center;
-    }}
-    
-    
-    .message-user {{
-        background: {theme['gradient_accent']};
-        color: white;
-        padding: 12px 16px;
-        border-radius: 18px 18px 5px 18px;
-        margin: 8px 0 8px 60px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        word-wrap: break-word;
-    }}
-    
-    .message-bot {{
-        background: {theme['accent']};
-        color: {theme['text']};
-        padding: 12px 16px;
-        border-radius: 18px 18px 18px 5px;
-        margin: 8px 60px 8px 0;
-        border: 1px solid {theme['border']};
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        word-wrap: break-word;
-    }}
-    
-    .message-timestamp {{
-        font-size: 10px;
-        opacity: 0.7;
-        margin-top: 4px;
-    }}
-    
-    .bot-status {{
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 15px;
-        color: {theme['primary']};
-        font-weight: bold;
-    }}
-    
-    .status-indicator {{
-        width: 8px;
-        height: 8px;
-        background: #00ff00;
-        border-radius: 50%;
-        margin-right: 8px;
-        animation: pulse 2s infinite;
-    }}
-    
-    .suggested-questions {{
-        background: {theme['glass_effect']};
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 1px solid {theme['border']};
-    }}
-    
-    .typing-indicator {{
-        display: flex;
-        align-items: center;
-        margin: 8px 60px 8px 0;
-        color: {theme['primary']};
-        font-style: italic;
-    }}
-    
-    .typing-dots {{
-        display: flex;
-        gap: 4px;
-        margin-left: 8px;
-    }}
-    
-    .typing-dot {{
-        width: 6px;
-        height: 6px;
-        background: {theme['primary']};
-        border-radius: 50%;
-        animation: typing 1.4s infinite ease-in-out;
-    }}
-    
-    .typing-dot:nth-child(1) {{ animation-delay: -0.32s; }}
-    .typing-dot:nth-child(2) {{ animation-delay: -0.16s; }}
-    
-    @keyframes pulse {{
-        0% {{ opacity: 1; }}
-        50% {{ opacity: 0.5; }}
-        100% {{ opacity: 1; }}
-    }}
-    
-    @keyframes typing {{
-        0%, 80%, 100% {{ transform: scale(0); }}
-        40% {{ transform: scale(1); }}
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Header
-    st.markdown("""
-    <div class="chatbot-header">
-        <h1 style="margin: 0; color: white;">🤖 IA Business Assistant</h1>
-        <p style="margin: 5px 0 0 0; color: white; opacity: 0.9;">Assistente inteligente para análise de dados e insights de negócios</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Status do bot
-    st.markdown("""
-    <div class="bot-status">
-        <div class="status-indicator"></div>
-        Aurum IA Assistant está online
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Inicializar histórico de chat se não existir
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = [
-            {
-                "type": "bot",
-                "message": "Olá! Sou o Aurum IA Assistant. Posso ajudá-lo com análises de dados, interpretação de métricas e insights estratégicos do seu negócio. Como posso auxiliá-lo hoje?",
-                "timestamp": "09:15"
-            },
-            {
-                "type": "user", 
-                "message": "Qual foi o desempenho de vendas no último trimestre?",
-                "timestamp": "09:16"
-            },
-            {
-                "type": "bot",
-                "message": "Baseando-me nos dados do dashboard, o último trimestre apresentou excelente performance:\\n\\n📈 **Vendas**: R$ 847.2K (+23% vs trimestre anterior)\\n💰 **Receita**: R$ 1.2M (+18% crescimento)\\n🎯 **Taxa de Conversão**: 8.7% (+1.2 pontos percentuais)\\n\\nDestaque para o crescimento orgânico de 31% e ROI de campanhas em 340%. Recomendo focar em otimizações sazonais para Q1.",
-                "timestamp": "09:16"
-            },
-            {
-                "type": "user",
-                "message": "Quais são os principais gargalos operacionais identificados?", 
-                "timestamp": "09:18"
-            },
-            {
-                "type": "bot",
-                "message": "Analisando os dados operacionais, identifiquei 3 gargalos críticos:\\n\\n🔍 **1. Tempo de Resposta**: Média de 4.2h (meta: <2h)\\n📦 **2. Fulfillment**: 23% dos pedidos com atraso\\n👥 **3. Atendimento**: Pico de 89% de ocupação\\n\\n**Recomendações imediatas:**\\n• Implementar chatbot para 40% das consultas\\n• Otimizar rota de distribuição (economia de 15%)\\n• Contratar 2 novos atendentes para reduzir gargalo",
-                "timestamp": "09:19"
-            },
-            {
-                "type": "user",
-                "message": "Como interpretar o CAC vs LTV dos nossos clientes?",
-                "timestamp": "09:21"
-            },
-            {
-                "type": "bot", 
-                "message": "Excelente pergunta! A análise CAC vs LTV mostra um cenário muito positivo:\\n\\n💼 **CAC Médio**: R$ 127\\n💎 **LTV Médio**: R$ 890\\n📊 **Ratio LTV/CAC**: 7.01x\\n\\n**Interpretação:**\\n✅ Ratio >3x é considerado saudável (temos 7x!)\\n✅ Payback period: ~2.8 meses (excelente)\\n✅ Margem de contribuição: 85.7%\\n\\n**Oportunidade**: Com esse ratio forte, podemos aumentar investimento em aquisição de clientes em até 40% mantendo lucratividade.",
-                "timestamp": "09:22"
-            }
-        ]
-    
-    # Renderizar histórico de mensagens
-    for msg in st.session_state.chat_history:
-        if msg["type"] == "user":
-            st.markdown(f"""
-            <div class="message-user">
-                {msg['message']}
-                <div class="message-timestamp">Você • {msg['timestamp']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="message-bot">
-                {msg['message']}
-                <div class="message-timestamp">Aurum IA • {msg['timestamp']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Mostrar indicador de digitação se necessário
-    if 'is_typing' in st.session_state and st.session_state.is_typing:
-        st.markdown("""
-        <div class="typing-indicator">
-            Aurum IA está digitando...
-            <div class="typing-dots">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Perguntas sugeridas
-    st.markdown("""
-    <div class="suggested-questions">
-        <h4 style="margin-top: 0; color: white;">💡 Perguntas Sugeridas:</h4>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("📊 Análise de Tendências", use_container_width=True):
-            handle_suggested_question("Quais são as principais tendências de crescimento identificadas nos últimos 6 meses?")
-    
-    with col2:
-        if st.button("💰 Otimização de ROI", use_container_width=True):
-            handle_suggested_question("Como posso otimizar o ROI das campanhas de marketing digital?")
-    
-    with col3:
-        if st.button("🎯 Previsões", use_container_width=True):
-            handle_suggested_question("Qual é a previsão de receita para os próximos 3 meses?")
-    
-    # Input de mensagem
-    st.markdown("---")
-    
-    with st.form("chat_form", clear_on_submit=True):
-        col1, col2 = st.columns([4, 1])
-        
-        with col1:
-            user_input = st.text_input("", placeholder="Digite sua pergunta sobre analytics, métricas ou estratégias...", label_visibility="collapsed")
-        
-        with col2:
-            send_button = st.form_submit_button("Enviar 🚀", use_container_width=True, type="primary")
-        
-        if send_button and user_input.strip():
-            handle_user_message(user_input.strip())
-
-def handle_suggested_question(question):
-    """Processa perguntas sugeridas"""
-    handle_user_message(question)
-
-def handle_user_message(message):
-    """Processa mensagem do usuário"""
-    current_time = datetime.now().strftime("%H:%M")
-    
-    # Adicionar mensagem do usuário
-    st.session_state.chat_history.append({
-        "type": "user",
-        "message": message,
-        "timestamp": current_time
-    })
-    
-    # Simular resposta do bot
-    bot_response = generate_bot_response(message)
-    
-    # Adicionar resposta do bot
-    st.session_state.chat_history.append({
-        "type": "bot", 
-        "message": bot_response,
-        "timestamp": current_time
-    })
-    
-    st.rerun()
-
-def generate_bot_response(user_message):
-    """Gera resposta simulada do bot baseada na mensagem do usuário"""
-    message_lower = user_message.lower()
-    
-    # Respostas baseadas em palavras-chave
-    if any(word in message_lower for word in ['tendência', 'crescimento', 'evolução']):
-        return """📈 **Análise de Tendências - Insights Estratégicos:**\\n\\n🔥 **Principais Tendências Identificadas:**\\n• Crescimento orgânico de 31% (maior dos últimos 2 anos)\\n• Mobile commerce: +67% participação\\n• Retenção de clientes: melhoria de 23%\\n\\n📊 **Padrões Sazonais:**\\n• Picos de conversão: Sextas (14h-16h) e fins de semana\\n• Q4 historicamente 40% superior ao Q3\\n• Black Friday: ROI médio 8.5x\\n\\n🎯 **Recomendações:**\\n• Ampliar investimento mobile em 25%\\n• Implementar programa de fidelidade premium\\n• Preparar campanha Q4 com budget +50%"""
-    
-    elif any(word in message_lower for word in ['roi', 'retorno', 'otimização', 'otimizar']):
-        return """💰 **Estratégias de Otimização de ROI:**\\n\\n🎯 **Oportunidades Imediatas (ROI +40%):**\\n• Google Ads: Focar long-tail keywords (CPC -60%)\\n• Facebook: Lookalike audiences 1% (CVR +35%)\\n• Email Marketing: Segmentação comportamental\\n\\n📊 **Performance Atual:**\\n• ROI Geral: 340% (excelente!)\\n• Melhor canal: Google Ads (ROI 420%)\\n• Oportunidade: Instagram Ads (+150% potencial)\\n\\n🚀 **Plano de Ação:**\\n• Realocar 30% do budget para canais high-ROI\\n• A/B test criativos semanalmente\\n• Implementar pixel tracking avançado"""
-    
-    elif any(word in message_lower for word in ['previsão', 'futuro', 'próximos', 'meses']):
-        return """🔮 **Previsões Baseadas em IA - Próximos 3 Meses:**\\n\\n📈 **Projeções de Receita:**\\n• Mês 1: R$ 1.35M (+12% vs atual)\\n• Mês 2: R$ 1.48M (+23% crescimento)\\n• Mês 3: R$ 1.62M (+35% total)\\n• **Total Trimestre**: R$ 4.45M\\n\\n🎯 **Fatores de Crescimento:**\\n• Campanha Black Friday: +R$ 480K\\n• Novos produtos: +R$ 220K\\n• Otimizações UX: +R$ 150K\\n\\n⚠️ **Riscos Monitorados:**\\n• Sazonalidade dezembro (-8% histórico)\\n• Concorrência: possível impacto de 5-12%\\n• Cenário conservador: R$ 3.9M (ainda +18%)"""
-    
-    elif any(word in message_lower for word in ['gargalo', 'problema', 'dificuldade']):
-        return """🔍 **Diagnóstico de Gargalos Operacionais:**\\n\\n⚠️ **Gargalos Críticos Identificados:**\\n• Tempo resposta suporte: 4.2h (meta: <2h)\\n• Processamento pedidos: 23% com atraso\\n• Capacidade atendimento: 89% ocupação\\n\\n📊 **Impacto nos KPIs:**\\n• NPS: -12 pontos devido lentidão\\n• Churn: +3.4% por insatisfação\\n• Receita perdida: ~R$ 47K/mês\\n\\n✅ **Soluções Recomendadas:**\\n• Chatbot inteligente (reduz 40% tickets)\\n• Contratação: 2 novos atendentes\\n• Automação fulfillment (+30% eficiência)"""
-    
-    elif any(word in message_lower for word in ['cliente', 'cac', 'ltv', 'aquisição']):
-        return """👥 **Análise Avançada de Clientes:**\\n\\n💎 **Métricas de Aquisição:**\\n• CAC Médio: R$ 127 (redução de 8% vs trimestre)\\n• LTV Médio: R$ 890 (+15% crescimento)\\n• Ratio LTV/CAC: 7.01x (excepcional!)\\n\\n📊 **Segmentação por Valor:**\\n• Tier Premium (20%): LTV R$ 1,840\\n• Tier Standard (60%): LTV R$ 720\\n• Tier Basic (20%): LTV R$ 340\\n\\n🚀 **Oportunidades:**\\n• Upsell Tier Standard → Premium (+R$ 280K potencial)\\n• Reativação churned customers (18% win-back rate)\\n• Referral program: CPA 65% menor que paid ads"""
-    
-    else:
-        # Resposta genérica profissional
-        return """🤖 **Análise Personalizada:**\\n\\nObrigado pela sua pergunta! Baseando-me nos dados do dashboard Aurum, posso fornecer insights específicos sobre:\\n\\n📊 **Áreas de Especialidade:**\\n• Performance de vendas e receita\\n• Análise de métricas de marketing\\n• Otimização operacional\\n• Previsões e tendências\\n• Segmentação de clientes\\n\\n💡 **Para obter insights mais precisos, você pode perguntar sobre:**\\n• "Como está a performance das campanhas?"\\n• "Quais são os principais gargalos operacionais?"\\n• "Qual a previsão de receita para próximo mês?"\\n\\n🎯 **Dados atualizados em tempo real** para decisões estratégicas inteligentes."""
+# Funções antigas do chatbot foram movidas para ai_chatbot.py
 
 def main():
+    # Verificar query parameters para persistência de login
+    query_params = st.query_params
+
+    # Inicializar session state
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
-    
+
+    # Verificar se há token de sessão na URL (persistência de login)
+    if not st.session_state.logged_in and 'session' in query_params:
+        session_token = query_params.get('session')
+        # Validar token simples (formato: base64 do username)
+        try:
+            username = base64.b64decode(session_token).decode('utf-8')
+            # Verificar se usuário existe
+            user = AuthManager.get_user(username)
+            if user:
+                st.session_state.user = user
+                st.session_state.logged_in = True
+        except:
+            pass  # Token inválido, ignorar
+
     if not st.session_state.logged_in:
         ThemeManager.apply_theme("Cyber Neon Pro")
         show_login()

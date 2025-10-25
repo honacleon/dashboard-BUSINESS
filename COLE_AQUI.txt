@@ -1,0 +1,62 @@
+================================================================================
+🔐 COPIE E COLE ESTE CONTEÚDO NO PAINEL DE SECRETS
+================================================================================
+
+PARA STREAMLIT CLOUD / GITHUB CODESPACES / GITHUB ACTIONS:
+
+Copie TODO o texto abaixo (começando em [deepseek]):
+
+--------------------------------------------------------------------------------
+[deepseek]
+api_key = "sk-715eb85d01dc41ff96963231e69dc82d"
+api_url = "https://api.deepseek.com/v1"
+model = "deepseek-chat"
+max_tokens = 2050
+temperature = 0.7
+--------------------------------------------------------------------------------
+
+================================================================================
+📍 ONDE COLAR:
+================================================================================
+
+🌐 STREAMLIT CLOUD:
+   1. Acesse: https://share.streamlit.io/
+   2. Vá no seu app → ⋮ (menu) → Settings
+   3. Clique em "Secrets"
+   4. Cole o conteúdo acima
+   5. Clique em "Save"
+
+💻 GITHUB CODESPACES:
+   1. Vá no repositório: https://github.com/honacleon/dashboard-BUSINESS
+   2. Settings → Secrets and variables → Codespaces
+   3. New repository secret
+   4. Name: DEEPSEEK_API_KEY
+   5. Value: sk-715eb85d01dc41ff96963231e69dc82d
+   6. Add secret
+
+🔧 GITHUB ACTIONS:
+   1. Vá no repositório: https://github.com/honacleon/dashboard-BUSINESS
+   2. Settings → Secrets and variables → Actions
+   3. New repository secret
+   4. Name: DEEPSEEK_API_KEY
+   5. Value: sk-715eb85d01dc41ff96963231e69dc82d
+   6. Add secret
+
+================================================================================
+✅ VERIFICAR SE FUNCIONOU:
+================================================================================
+
+No dashboard, vá em:
+   🤖 IA Chatbot → ⚙️ Configurações Avançadas
+
+Deve mostrar:
+   ✅ IA Real Ativa - DeepSeek (deepseek-chat)
+
+================================================================================
+📚 MAIS INFORMAÇÕES:
+================================================================================
+
+Leia: GUIA_GITHUB_SECRETS.md
+(Guia completo com screenshots e troubleshooting)
+
+================================================================================
