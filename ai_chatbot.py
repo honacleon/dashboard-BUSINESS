@@ -531,19 +531,19 @@ Obrigado pela sua pergunta! Posso fornecer insights específicos sobre diversos 
         """Retorna lista de perguntas sugeridas contextuais"""
         return [
             {
-                "label": "📈 Análise de Tendências",
+                "label": "📊 Análise de Tendências",
                 "question": "Quais são as principais tendências de crescimento identificadas nos últimos 6 meses?"
             },
             {
-                "label": "💰 Otimização de ROI",
+                "label": "💡 Otimização de ROI",
                 "question": "Como posso otimizar o ROI das campanhas de marketing digital?"
             },
             {
-                "label": "🔮 Previsões",
+                "label": "📈 Previsões",
                 "question": "Qual é a previsão de receita para os próximos 3 meses?"
             },
             {
-                "label": "🔍 Diagnóstico",
+                "label": "🔎 Diagnóstico",
                 "question": "Quais são os principais gargalos operacionais que devo resolver?"
             },
             {
@@ -551,7 +551,7 @@ Obrigado pela sua pergunta! Posso fornecer insights específicos sobre diversos 
                 "question": "Como está a performance da equipe de vendas?"
             },
             {
-                "label": "📊 CAC vs LTV",
+                "label": "💰 CAC vs LTV",
                 "question": "Como interpretar meu CAC de R$ 127 e LTV de R$ 890?"
             }
         ]
